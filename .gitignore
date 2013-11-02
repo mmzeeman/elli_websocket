@@ -1,3 +1,5 @@
+ebin
+rebar
 .eunit
 deps
 *.o
