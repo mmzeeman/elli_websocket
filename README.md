@@ -30,7 +30,7 @@ $ ./rebar compile
 Usage
 -----
 
-Callback moodule
+Callback module
 -----------------
 
 ```erlang
