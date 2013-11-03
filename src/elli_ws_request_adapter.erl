@@ -35,7 +35,6 @@
 -export([
 	websocket_handler_init/3,
 	websocket_handler_callback/5,
-	websocket_handler_terminate/4,
 
 	websocket_handler_handle_event/5
 	]).
@@ -78,6 +77,10 @@ get(socket, ReqAdapter) ->
 	Req#req.socket;
 get(resp_compress, ReqAdapter) ->
 	ReqAdapter#req_adapter.resp_compress;
+get(websocket_version, ReqAdapter) ->
+	ReqAdapter#req_adapter.websocket_version;
+get(websocket_compress, ReqAdapter) ->
+	ReqAdapter#req_adapter.websocket_compress;
 get(L, Req) when is_list(L) ->
 	get(L, Req, []).
 get([], _Req, Acc) ->
@@ -190,10 +193,6 @@ websocket_handler_callback(#req_adapter{req=Req}=RA, Handler, Callback, Message,
 		{shutdown, HandlerState1} ->
 			{shutdown, RA, HandlerState1}
 	end.
-
-%% @doc The websocket is terminated.. call websocket_terminate.
-websocket_handler_terminate(#req_adapter{req=Req}, Handler, TerminateReason, HandlerState) ->
-	Handler:websocket_terminate(Req, TerminateReason, HandlerState).
 
 %% @doc Report an event...
 websocket_handler_handle_event(#req_adapter{req=Req}, Handler, Name, EventArgs, HandlerOpts) ->

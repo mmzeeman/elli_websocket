@@ -7,8 +7,8 @@
 -export([
     websocket_init/2, 
     websocket_info/3, 
-    websocket_handle/3, 
-    websocket_terminate/3, 
+    websocket_handle/3,
+
     websocket_handle_event/3
 ]).
 
@@ -80,10 +80,6 @@ websocket_info(Req, Message, State) ->
 websocket_handle(Req, Message, State) ->
     io:fwrite(standard_error, "example_ws_handle: ~p~n", [Message]),
     {ok, State}.
-
-websocket_terminate(Req, Reason, State) ->
-    io:fwrite(standard_error, "example_ws_terminate: ~p, ~p, ~p~n", [Req, Reason, State]),
-    ok.
 
 %% Event callback module..
 websocket_handle_event(Name, EventArgs, Args) ->

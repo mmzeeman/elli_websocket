@@ -22,12 +22,16 @@
 %% Adapted to serve as websocket handler for elli
 %%
 
-%% Removed ranch remove connection call.
-%% Removed configurable transport => elli_tcp 
-%% Uses elli_ws_request_adapter.
-%% in handler_loop change socket=Socket to {_,Port} and change all receive clauses.
-%%    same for websocket_payload_loop.
-%% Properly uppercased response headers. 
+%% Changes:
+%%   * Removed ranch remove connection call.
+%%   * Removed configurable transport => elli_tcp only
+%%   * Uses elli_ws_request_adapter.
+%%   * in handler_loop change socket=Socket to {_,Port} and change all receive clauses.
+%%   * same for websocket_payload_loop.
+%%   * Uppercased response headers. 
+%%   * Improved error reporting, all handler exceptions are reported to the handler.
+%%   * Improved status reporting, events are fired when the websocket is open and when 
+%%     it closes.
 
 -module(elli_ws_protocol).
 
@@ -179,7 +183,7 @@ handler_init(State=#state{env=Env, handler=Handler}, Req, HandlerOpts) ->
 % 	-> {ok, Req, cowboy_middleware:env()}
 % 	| {suspend, module(), atom(), [any()]}
 % 	when Req::elli_ws_request_adapter:req().
-websocket_handshake(State=#state{key=Key, deflate_frame=DeflateFrame}, Req, HandlerState) ->
+websocket_handshake(State=#state{key=Key, deflate_frame=DeflateFrame, handler=Handler}, Req, HandlerState) ->
 	%% @todo Change into crypto:hash/2 for R17B+ or when supporting only R16B+.
 	Challenge = base64:encode(crypto:sha(
 		<< Key/binary, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11" >>)),
@@ -193,6 +197,11 @@ websocket_handshake(State=#state{key=Key, deflate_frame=DeflateFrame}, Req, Hand
 		 {<<"Sec-WebSocket-Accept">>, Challenge}|
 		 Extensions],
 		Req),
+
+	%% Upgrade reply is sent, report that the websocket is open.
+	handle_event(Req, Handler, websocket_open, 
+		[elli_ws_request_adapter:get(websocket_version, Req), DeflateFrame], HandlerState),
+
 	%% Flush the resp_sent message before moving on.
 	%% receive {elli_ws_request_adapter, resp_sent} -> ok after 0 -> ok end,
 	State2 = handler_loop_timeout(State),
@@ -760,18 +769,8 @@ websocket_close(State=#state{socket=Socket},
 % -spec handler_terminate(#state{}, Req, any(), atom() | {atom(), atom()})
 % 	-> {ok, Req, cowboy_middleware:env()}
 % 	when Req::elli_ws_request_adapter:req().
-handler_terminate(#state{env=Env, handler=Handler},
-		Req, HandlerState, TerminateReason) ->
-	try
-		elli_ws_request_adapter:websocket_handler_terminate(Req, Handler, TerminateReason, HandlerState)
-	catch
-		throw:Exc ->
-			handle_event(Req, Handler, websocket_throw, [Exc, erlang:get_stacktrace()], HandlerState);
-		error:Error ->
-			handle_event(Req, Handler, websocket_error, [Error, erlang:get_stacktrace()], HandlerState);
-		exit:Exit ->
-			handle_event(Req, Handler, websocket_exit, [Exit, erlang:get_stacktrace()], HandlerState)
-	end,
+handler_terminate(#state{env=Env, handler=Handler}, Req, HandlerState, TerminateReason) ->
+	handle_event(Req, Handler, websocket_close, [TerminateReason], HandlerState),
 	{ok, Req, [{result, closed}|Env]}.
 
 % -spec payload_length_to_binary(0..16#7fffffffffffffff)
