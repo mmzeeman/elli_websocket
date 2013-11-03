@@ -32,11 +32,12 @@
 	header/2,
 	set_meta/3]).
 
-%% Unwraps the adapter and passes a plain elli request object around.
 -export([
 	websocket_handler_init/3,
 	websocket_handler_callback/5,
-	websocket_handler_terminate/4
+	websocket_handler_terminate/4,
+
+	websocket_handler_handle_event/5
 	]).
 
 %% Helper function.
@@ -193,6 +194,17 @@ websocket_handler_callback(#req_adapter{req=Req}=RA, Handler, Callback, Message,
 %% @doc The websocket is terminated.. call websocket_terminate.
 websocket_handler_terminate(#req_adapter{req=Req}, Handler, TerminateReason, HandlerState) ->
 	Handler:websocket_terminate(Req, TerminateReason, HandlerState).
+
+%% @doc Report an event...
+websocket_handler_handle_event(#req_adapter{req=Req}, Handler, Name, EventArgs, HandlerOpts) ->
+    try
+        Handler:websocket_handle_event(Name, [Req|EventArgs], HandlerOpts)
+    catch
+        EvClass:EvError ->
+            error_logger:error_msg("~p:handle_event/3 crashed ~p:~p~n~p",
+                                   [Handler, EvClass, EvError,
+                                    erlang:get_stacktrace()])
+    end.
 
 % @doc Atoms used to identify messages in {active, once | true} mode.
 messages(#req_adapter{}=RA) ->

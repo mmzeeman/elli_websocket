@@ -3,7 +3,14 @@
 
 -export([init/2, handle/2, handle_event/3]).
 
--export([websocket_init/2, websocket_info/3, websocket_handle/3, websocket_terminate/3]).
+% Websocket callbacks.
+-export([
+    websocket_init/2, 
+    websocket_info/3, 
+    websocket_handle/3, 
+    websocket_terminate/3, 
+    websocket_handle_event/3
+]).
 
 -include_lib("elli/include/elli.hrl").
 
@@ -59,8 +66,8 @@ handle_event(Name, EventArgs, ElliArgs) ->
     ok.
 
 
-%%
-%%
+% @doc
+%
 websocket_init(Req, Opts) ->
     io:fwrite(standard_error, "example_ws_init: ~p, ~p ~n", [Req, Opts]),
     State = undefined,
@@ -76,6 +83,11 @@ websocket_handle(Req, Message, State) ->
 
 websocket_terminate(Req, Reason, State) ->
     io:fwrite(standard_error, "example_ws_terminate: ~p, ~p, ~p~n", [Req, Reason, State]),
+    ok.
+
+%% Event callback module..
+websocket_handle_event(Name, EventArgs, Args) ->
+    io:fwrite(standard_error, "websocket_event: ~p ~p ~p~n", [Name, EventArgs, Args]),
     ok.
 
 %%

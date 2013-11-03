@@ -85,10 +85,17 @@ upgrade(Req, Env, Handler, HandlerOpts) ->
 	Socket = elli_ws_request_adapter:get(socket, Req),
 	State = #state{env=Env, socket=Socket, handler=Handler},
 	try websocket_upgrade(State, Req) of
-		{ok, State2, Req2} ->
-			handler_init(State2, Req2, HandlerOpts)
-	catch _:_ ->
-		elli_ws_request_adapter:maybe_reply(400, Req)
+		{ok, State2, Req2} -> handler_init(State2, Req2, HandlerOpts)
+	catch 
+		throw:Exc ->
+			handle_event(Req, Handler, websocket_throw, [Exc, erlang:get_stacktrace()], HandlerOpts),
+			elli_ws_request_adapter:maybe_reply(400, Req);
+		error:Error ->
+			handle_event(Req, Handler, websocket_error, [Error, erlang:get_stacktrace()], HandlerOpts),
+			elli_ws_request_adapter:maybe_reply(400, Req);
+		exit:Exit ->
+			handle_event(Req, Handler, websocket_exit, [Exit, erlang:get_stacktrace()], HandlerOpts),
+			elli_ws_request_adapter:maybe_reply(400, Req)
 	end.
 
 % -spec websocket_upgrade(#state{}, Req)
@@ -156,16 +163,16 @@ handler_init(State=#state{env=Env, handler=Handler}, Req, HandlerOpts) ->
 		{shutdown, Req2} ->
 			elli_ws_request_adapter:ensure_response(Req2, 400),
 			{ok, Req2, [{result, closed}|Env]}
-	catch Class:Reason ->
-		io:fwrite(standard_error, "init catch: ~p, ~p~n", [Class, Reason]),
-		elli_ws_request_adapter:maybe_reply(400, Req),
-		erlang:Class([
-			{reason, Reason},
-			{mfa, {Handler, websocket_init, 3}},
-			{stacktrace, erlang:get_stacktrace()},
-			{req, elli_ws_request_adapter:to_list(Req)},
-			{opts, HandlerOpts}
-		])
+	catch
+		throw:Exc ->
+			handle_event(Req, Handler, websocket_throw, [Exc, erlang:get_stacktrace()], HandlerOpts),
+			elli_ws_request_adapter:maybe_reply(400, Req);
+		error:Error ->
+			handle_event(Req, Handler, websocket_error, [Error, erlang:get_stacktrace()], HandlerOpts),
+			elli_ws_request_adapter:maybe_reply(400, Req);
+		exit:Exit ->
+			handle_event(Req, Handler, websocket_exit, [Exit, erlang:get_stacktrace()], HandlerOpts),
+			elli_ws_request_adapter:maybe_reply(400, Req)
 	end.
 
 % -spec websocket_handshake(#state{}, Req, any())
@@ -648,16 +655,13 @@ handler_call(State=#state{handler=Handler}, Req, HandlerState,
 			end;
 		{shutdown, Req2, HandlerState2} ->
 			websocket_close(State, Req2, HandlerState2, {normal, shutdown})
-	catch Class:Reason ->
-		_ = websocket_close(State, Req, HandlerState, {error, handler}),
-		erlang:Class([
-			{reason, Reason},
-			{mfa, {Handler, Callback, 3}},
-			{stacktrace, erlang:get_stacktrace()},
-			{msg, Message},
-			{req, elli_ws_request_adapter:to_list(Req)},
-			{state, HandlerState}
-		])
+	catch 
+		throw:Exc ->
+			handle_event(Req, Handler, websocket_throw, [Exc, erlang:get_stacktrace()], HandlerState);
+		error:Error ->
+			handle_event(Req, Handler, websocket_error, [Error, erlang:get_stacktrace()], HandlerState);
+		exit:Exit ->
+			handle_event(Req, Handler, websocket_exit, [Exit, erlang:get_stacktrace()], HandlerState)
 	end.
 
 websocket_opcode(text) -> 1;
@@ -760,15 +764,13 @@ handler_terminate(#state{env=Env, handler=Handler},
 		Req, HandlerState, TerminateReason) ->
 	try
 		elli_ws_request_adapter:websocket_handler_terminate(Req, Handler, TerminateReason, HandlerState)
-	catch Class:Reason ->
-		erlang:Class([
-			{reason, Reason},
-			{mfa, {Handler, websocket_terminate, 3}},
-			{stacktrace, erlang:get_stacktrace()},
-			{req, elli_ws_request_adapter:to_list(Req)},
-			{state, HandlerState},
-			{terminate_reason, TerminateReason}
-		])
+	catch
+		throw:Exc ->
+			handle_event(Req, Handler, websocket_throw, [Exc, erlang:get_stacktrace()], HandlerState);
+		error:Error ->
+			handle_event(Req, Handler, websocket_error, [Error, erlang:get_stacktrace()], HandlerState);
+		exit:Exit ->
+			handle_event(Req, Handler, websocket_exit, [Exit, erlang:get_stacktrace()], HandlerState)
 	end,
 	{ok, Req, [{result, closed}|Env]}.
 
@@ -780,3 +782,13 @@ payload_length_to_binary(N) ->
 		N when N =< 16#ffff -> << 126:7, N:16 >>;
 		N when N =< 16#7fffffffffffffff -> << 127:7, N:64 >>
 	end.
+
+
+%%
+%% Helper 
+%%
+
+% @doc Report the error to the websocket handler.
+handle_event(Req, Handler, Name, EventArgs, Opts) ->
+	elli_ws_request_adapter:websocket_handler_handle_event(Req, Handler, Name, EventArgs, Opts).
+
