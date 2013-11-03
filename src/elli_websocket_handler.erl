@@ -12,7 +12,7 @@
 	%% TODO
 	any().
 
--callback websocket_info(Req :: #req{}, elli_websocket_message(), Args :: any()) ->
+-callback websocket_info(Req :: #req{}, any(), Args :: any()) ->
 	%% TODO
 	any().
 
