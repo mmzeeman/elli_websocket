@@ -52,3 +52,66 @@ websocket_terminate(_Req, _Reason, _State) ->
     ok.
 
 ```
+
+Upgrading to Websocket Connection
+---------------------------------
+
+This is an example of how you can upgrade to a websocket connection.
+
+```erlang
+
+-module(elli_echo_websocket).
+
+-export([init/2, handle/2, handle_event/3]).
+
+-include_lib("elli/include/elli.hrl").
+
+-behaviour(elli_handler).
+
+init(Req, Args) ->
+    Method = case elli_request:get_header(<<"Upgrade">>, Req) of
+        <<"websocket">> ->
+            init_ws(elli_request:path(Req), Req, Args);
+        _ ->
+            ignore
+    end.
+
+handle(Req, Args) ->
+    Method = case elli_request:get_header(<<"Upgrade">>, Req) of
+        <<"websocket">> -> 
+            websocket;
+        _ ->
+            elli_request:method(Req)        
+    end,
+    handle(Method, elli_request:path(Req), Req, Args).
+    
+handle_event(_Event, _Data, _Args) ->
+    ok.
+
+%%
+%% Helpers
+%%
+
+init_ws([<<"echo_websocket">>], _Req, _Args) ->
+    {ok, handover};
+init_ws(_, _, _) ->
+    ignore.
+
+handle('websocket', [<<"echo_websocket">>], Req, Args) ->
+    %% Upgrade to a websocket connection. 
+    elli_websocket:upgrade(Req, Args),
+    
+    %% websocket is closed.
+    {close, <<>>};
+
+handle('GET', [<<"echo_websocket">>], _Req, _Args) ->
+    %% We got a normal request, request was not upgraded.
+    {200, [], <<"Use an upgrade request">>};
+
+handle(_,_,_,_) ->
+    ignore.
+```
+
+
+
+
