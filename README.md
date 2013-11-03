@@ -34,21 +34,24 @@ Callback module
 -----------------
 
 ```erlang
--module(elli_example_websocket_handler).
+-module(elli_echo_websocket_handler).
 -export([websocket_init/1, websocket_handle/3, websocket_info/3, websocket_terminate/3]).
 
 websocket_init(Req, Opts) ->
     State = undefined,
     {ok, [], State}.
 
+websocket_handle(_Req, {text, Data}, State) ->
+    {reply, {text, Data}, State};
+websocket_handle(_Req, {binary, Data}, State) ->
+    {reply, {binary, Data}, State};
+websocket_handle(_Req, _Frame, State) ->
+    {ok, State}.
+
 websocket_info(Req, Message, State) ->
     {ok, State}.
 
-websocket_handle(Req, Message, State) ->
-    {ok, State}.
-
-websocket_terminate(Req, Reason, State) ->
+websocket_terminate(_Req, _Reason, _State) ->
     ok.
-
 
 ```
