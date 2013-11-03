@@ -27,9 +27,6 @@ $ ./rebar compile
 ```
 
 
-Usage
------
-
 Callback module
 -----------------
 
