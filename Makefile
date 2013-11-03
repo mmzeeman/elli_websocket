@@ -12,7 +12,7 @@ all: compile
 compile: rebar
 	$(REBAR) compile
 
-test: 
+test: rebar
 	$(REBAR) -C rebar.test.config get-dep compile
 	$(REBAR) -C rebar.test.config eunit -v skip_deps=true
 
