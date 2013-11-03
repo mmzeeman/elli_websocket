@@ -1,4 +1,9 @@
--module(elli_example_ws).
+%%
+%%
+%%
+
+
+-module(elli_example_websocket).
 -author("Maas-Maarten Zeeman <mmzeeman@xs4all.nl>").
 
 -export([init/2, handle/2, handle_event/3]).
@@ -15,7 +20,7 @@
 -include_lib("elli/include/elli.hrl").
 
 -behaviour(elli_handler).
-% -behaviour(elli_ws_handler).
+-behaviour(elli_websocket_handler).
 
 %%
 %% Elli Handler Callbacks
@@ -43,7 +48,7 @@ handle(Req, Args) ->
 
 
 %%
-%%
+%% Elli handler callbacks
 %%
 
 init_ws([<<"my">>, <<"websocket">>], _Req, _Args) ->
@@ -65,6 +70,10 @@ handle_event(Name, EventArgs, ElliArgs) ->
     io:fwrite(standard_error, "event: ~p ~p ~p~n", [Name, EventArgs, ElliArgs]),
     ok.
 
+%%
+%% Elli websocket handler callbacks
+%%
+
 
 % @doc
 %
@@ -81,14 +90,24 @@ websocket_handle(Req, Message, State) ->
     io:fwrite(standard_error, "example_ws_handle: ~p~n", [Message]),
     {ok, State}.
 
-%% Event callback module..
-websocket_handle_event(Name, EventArgs, Args) ->
-    io:fwrite(standard_error, "websocket_event: ~p ~p ~p~n", [Name, EventArgs, Args]),
-    ok.
 
 %%
-%% Helper 
+%% Elli Websocket Event Callbacks.
 %%
+
+%% websocket_open and websocket_close events are sent when the websocket
+%% opens, and when it closes.
+websocket_handle_event(websocket_open, [_Version, _Compress], _) -> ok;
+websocket_handle_event(websocket_close, [_Reason], _) -> ok;
+
+%% websocket_throw, websocket_error and websocket_exit events are sent if
+%% the user callback code throws an exception, has an error or
+%% exits. After triggering this event, a generated response is sent to
+%% the user.
+websocket_handle_event(websocket_throw, [_Request, _Exception, _Stacktrace], _) -> ok;
+websocket_handle_event(websocket_error, [_Request, _Exception, _Stacktrace], _) -> ok;
+websocket_handle_event(websocket_exit, [_Request, _Exception, _Stacktrace], _) -> ok.
+
 
 
     
