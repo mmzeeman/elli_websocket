@@ -28,9 +28,11 @@ $ ./rebar compile
 
 ## Callback module
 
+See elli_example_websocket.erl for details.
+
 ```erlang
 -module(elli_echo_websocket_handler).
--export([websocket_init/1, websocket_handle/3, websocket_info/3, websocket_terminate/3]).
+-export([websocket_init/1, websocket_handle/3, websocket_info/3, websocket_handle_event/3]).
 
 websocket_init(Req, Opts) ->
     State = undefined,
@@ -46,7 +48,7 @@ websocket_handle(_Req, _Frame, State) ->
 websocket_info(Req, Message, State) ->
     {ok, State}.
 
-websocket_terminate(_Req, _Reason, _State) ->
+websocket_handle_event(Name, EventArgs, State) ->
     ok.
 
 ```
