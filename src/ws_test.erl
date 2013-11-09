@@ -6,11 +6,10 @@
 
 
 start() -> 
-    application:start(crypto),
-    application:start(public_key),
-    application:start(ssl),
-    inets:start(),
-
+    _ = application:start(crypto),
+    _ = application:start(public_key),
+    _ = application:start(ssl),
+    
     WsConfig = [{handler, elli_example_ws}],
 
     Config = [{mods, [{elli_example_ws, WsConfig}]}],

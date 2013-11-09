@@ -19,6 +19,8 @@
 
 -include_lib("elli/include/elli.hrl").
 
+%% Serves as elli and websocket handler in one module. 
+
 -behaviour(elli_handler).
 -behaviour(elli_websocket_handler).
 

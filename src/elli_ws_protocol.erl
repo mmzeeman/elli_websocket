@@ -32,6 +32,7 @@
 %%   * Improved error reporting, all handler exceptions are reported to the handler.
 %%   * Improved status reporting, events are fired when the websocket is open and when 
 %%     it closes.
+%%   * Checked types with dialyzer.
 
 -module(elli_ws_protocol).
 
@@ -61,8 +62,7 @@
 
 -record(state, {
 	env :: [], %% cowboy_middleware:env(),
-	socket = undefined, %%  :: elli_tcp:socket(),
-	% transport = undefined :: module(),
+	socket = undefined :: undefined | elli_tcp:socket(),
 	handler :: module(),
 	key = undefined :: undefined | binary(),
 	timeout = infinity :: timeout(),
@@ -81,10 +81,9 @@
 %% You do not need to call this function manually. To upgrade to the Websocket
 %% protocol, you simply need to return <em>{upgrade, protocol, {@module}}</em>
 %% in your <em>cowboy_http_handler:init/3</em> handler function.
-% -spec upgrade(Req, Env, module(), any())
-% 	-> {ok, Req, Env} | {error, 400, Req}
-% 	| {suspend, module(), atom(), [any()]}
-% 	when Req::elli_ws_request_adapter:req(), Env::cowboy_middleware:env().
+-spec upgrade(Req, Env, Handler :: module(), HandlerOpts :: any()) -> 
+	{ok, Req, Env} | {error, 400, Req} | {suspend, module(), atom(), [any()]}
+ 	when Req::elli_ws_request_adapter:req(), Env::list().
 upgrade(Req, Env, Handler, HandlerOpts) ->
 	Socket = elli_ws_request_adapter:get(socket, Req),
 	State = #state{env=Env, socket=Socket, handler=Handler},
@@ -213,12 +212,12 @@ websocket_handshake(State=#state{key=Key, deflate_frame=DeflateFrame, handler=Ha
 % 	| {suspend, module(), atom(), [any()]}
 % 	when Req::elli_ws_request_adapter:req().
 handler_before_loop(State=#state{socket=Socket, hibernate=true}, Req, HandlerState, SoFar) ->
-	elli_tcp:setopts(Socket, [{active, once}]),
+	ok = elli_tcp:setopts(Socket, [{active, once}]),
 	{suspend, ?MODULE, handler_loop,
 		[State#state{hibernate=false}, Req, HandlerState, SoFar]};
 handler_before_loop(State=#state{socket=Socket},
 		Req, HandlerState, SoFar) ->
-	elli_tcp:setopts(Socket, [{active, once}]),
+	ok = elli_tcp:setopts(Socket, [{active, once}]),
 	handler_loop(State, Req, HandlerState, SoFar).
 
 % -spec handler_loop_timeout(#state{}) -> #state{}.
@@ -542,7 +541,7 @@ is_utf8(_) ->
 websocket_payload_loop(State=#state{socket={_,Port}=Socket, 
 		messages={OK, Closed, Error}, timeout_ref=TRef},
 		Req, HandlerState, Opcode, Len, MaskKey, Unmasked, UnmaskedLen, Rsv) ->
-	elli_tcp:setopts(Socket, [{active, once}]),
+	ok = elli_tcp:setopts(Socket, [{active, once}]),
 	receive
 		{OK, Port, Data} ->
 			State2 = handler_loop_timeout(State),
@@ -598,7 +597,7 @@ websocket_dispatch(State, Req, HandlerState, _RemainingData, 8,
 websocket_dispatch(State=#state{socket=Socket},
 		Req, HandlerState, RemainingData, 9, Payload) ->
 	Len = payload_length_to_binary(byte_size(Payload)),
-	elli_tcp:send(Socket, << 1:1, 0:3, 10:4, 0:1, Len/bits, Payload/binary >>),
+	ok = elli_tcp:send(Socket, << 1:1, 0:3, 10:4, 0:1, Len/bits, Payload/binary >>),
 	handler_call(State, Req, HandlerState, RemainingData,
 		websocket_handle, {ping, Payload}, fun websocket_data/4);
 %% Pong control frame.
@@ -716,7 +715,7 @@ websocket_send({Type = close, StatusCode, Payload}, State=#state{
 	%% Control packets must not be > 125 in length.
 	true = Len =< 125,
 	BinLen = payload_length_to_binary(Len),
-	elli_tcp:send(Socket,
+	ok = elli_tcp:send(Socket,
 		[<< 1:1, 0:3, Opcode:4, 0:1, BinLen/bits, StatusCode:16 >>, Payload]),
 	{shutdown, State};
 websocket_send({Type, Payload0}, State=#state{socket=Socket}) ->
@@ -750,19 +749,20 @@ websocket_send_many([Frame|Tail], State) ->
 % 	when Req::elli_ws_request_adapter:req().
 websocket_close(State=#state{socket=Socket},
 		Req, HandlerState, Reason) ->
-	case Reason of
+	_OkOrError = case Reason of
 		{normal, _} ->
 			elli_tcp:send(Socket, << 1:1, 0:3, 8:4, 0:1, 2:7, 1000:16 >>);
 		{error, badframe} ->
 			elli_tcp:send(Socket, << 1:1, 0:3, 8:4, 0:1, 2:7, 1002:16 >>);
 		{error, badencoding} ->
 			elli_tcp:send(Socket, << 1:1, 0:3, 8:4, 0:1, 2:7, 1007:16 >>);
+		% TODO: check why this can't be reached.
 		{error, handler} ->
 			elli_tcp:send(Socket, << 1:1, 0:3, 8:4, 0:1, 2:7, 1011:16 >>);
 		{remote, closed} ->
-			elli_tcp:send(Socket, << 1:1, 0:3, 8:4, 0:8 >>);
+		 	elli_tcp:send(Socket, << 1:1, 0:3, 8:4, 0:8 >>);
 		{remote, Code, _} ->
-			elli_tcp:send(Socket, << 1:1, 0:3, 8:4, 0:1, 2:7, Code:16 >>)
+		 	elli_tcp:send(Socket, << 1:1, 0:3, 8:4, 0:1, 2:7, Code:16 >>)
 	end,
 	handler_terminate(State, Req, HandlerState, Reason).
 

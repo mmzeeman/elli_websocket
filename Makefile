@@ -33,4 +33,4 @@ build-plt:
 
 dialyze:
 	@$(DIALYZER) -pa deps/*/ebin --src src --plt .$(PROJECT).plt --no_native \
-		-Werror_handling -Wrace_conditions -Wunmatched_returns -Wunderspecs
+		-Werror_handling -Wrace_conditions -Wunmatched_returns 
