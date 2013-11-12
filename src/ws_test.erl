@@ -10,9 +10,9 @@ start() ->
     _ = application:start(public_key),
     _ = application:start(ssl),
     
-    WsConfig = [{handler, elli_example_ws}],
+    WsConfig = [{handler, elli_example_websocket}],
 
-    Config = [{mods, [{elli_example_ws, WsConfig}]}],
+    Config = [{mods, [{elli_example_websocket, WsConfig}]}],
 
     elli:start_link([{callback, elli_middleware},
                      {callback_args, Config}, {port, 8000}]).
