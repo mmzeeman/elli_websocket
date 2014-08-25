@@ -90,7 +90,11 @@ websocket_info(Req, Message, State) ->
 
 websocket_handle(Req, Message, State) ->
     io:fwrite(standard_error, "example_ws_handle: ~p~n", [Message]),
+%%  default behaviour.
     {ok, State}.
+%%  comment the line above ({ok, State}.)
+%%  and uncomment the line below for an echo server.
+%   {reply, Message, State}.
 
 
 %%
@@ -99,8 +103,8 @@ websocket_handle(Req, Message, State) ->
 
 %% websocket_open and websocket_close events are sent when the websocket
 %% opens, and when it closes.
-websocket_handle_event(websocket_open, [_Version, _Compress], _) -> ok;
-websocket_handle_event(websocket_close, [_Reason], _) -> ok;
+websocket_handle_event(websocket_open, [_, _Version, _Compress], _) -> ok;
+websocket_handle_event(websocket_close, [_, _Reason], _) -> ok;
 
 %% websocket_throw, websocket_error and websocket_exit events are sent if
 %% the user callback code throws an exception, has an error or
