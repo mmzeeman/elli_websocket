@@ -62,7 +62,7 @@
 	websocket_compress=false :: boolean()
 	}).
 
--type req() :: record(req_adapter).
+-type req() :: #req_adapter{}.
 
 
 %%
