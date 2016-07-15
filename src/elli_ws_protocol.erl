@@ -61,7 +61,7 @@
 -type rsv() :: << _:3 >>.
 
 -record(state, {
-	env :: [], %% cowboy_middleware:env(),
+	env :: list(), %% cowboy_middleware:env(),
 	socket = undefined :: undefined | elli_tcp:socket(),
 	handler :: module(),
 	key = undefined :: undefined | binary(),
