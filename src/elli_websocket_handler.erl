@@ -30,12 +30,10 @@
 
 
 -callback websocket_handle(Req :: elli:req(), Message :: elli_websocket:message(), State :: any()) ->
-    %% TODO
-    any().
+    {reply, ReplyMessage :: elli_websocket:message(), State}.
 
 -callback websocket_info(Req :: elli:req(), Message :: any(), State :: any()) ->
-    %% TODO
-    any().
+    {ok, ReplyState :: any()}.
 
 -callback websocket_handle_event(Event :: elli_websocket:event(), Args :: list(), State :: any()) -> 
     ok.
