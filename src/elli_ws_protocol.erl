@@ -28,17 +28,13 @@
 %%   * Uses elli_ws_request_adapter.
 %%   * in handler_loop change socket=Socket to {_,Port} and change all receive clauses.
 %%   * same for websocket_payload_loop.
-%%   * Uppercased response headers. 
+%%   * Uppercased response headers.
 %%   * Improved error reporting, all handler exceptions are reported to the handler.
-%%   * Improved status reporting, events are fired when the websocket is open and when 
+%%   * Improved status reporting, events are fired when the websocket is open and when
 %%     it closes.
 %%   * Checked types with dialyzer.
 
 -module(elli_ws_protocol).
-
-%% Ignore the deprecation warning for crypto:sha/1.
-%% @todo Remove when we support only R16B+.
--compile(nowarn_deprecated_function).
 
 %% API.
 -export([upgrade/4]).
@@ -81,7 +77,7 @@
 %% You do not need to call this function manually. To upgrade to the Websocket
 %% protocol, you simply need to return <em>{upgrade, protocol, {@module}}</em>
 %% in your <em>cowboy_http_handler:init/3</em> handler function.
--spec upgrade(Req, Env, Handler :: module(), HandlerOpts :: any()) -> 
+-spec upgrade(Req, Env, Handler :: module(), HandlerOpts :: any()) ->
 	{ok, Req, Env} | {error, 400, Req} | {suspend, module(), atom(), [any()]}
  	when Req::elli_ws_request_adapter:req(), Env::list().
 upgrade(Req, Env, Handler, HandlerOpts) ->
@@ -89,7 +85,7 @@ upgrade(Req, Env, Handler, HandlerOpts) ->
 	State = #state{env=Env, socket=Socket, handler=Handler},
 	try websocket_upgrade(State, Req) of
 		{ok, State2, Req2} -> handler_init(State2, Req2, HandlerOpts)
-	catch 
+	catch
 		throw:Exc ->
 			handle_event(Req, Handler, websocket_throw, [Exc, erlang:get_stacktrace()], HandlerOpts),
 			elli_ws_request_adapter:maybe_reply(400, Req);
@@ -184,7 +180,7 @@ handler_init(State=#state{env=Env, handler=Handler}, Req, HandlerOpts) ->
 % 	when Req::elli_ws_request_adapter:req().
 websocket_handshake(State=#state{key=Key, deflate_frame=DeflateFrame, handler=Handler}, Req, HandlerState) ->
 	%% @todo Change into crypto:hash/2 for R17B+ or when supporting only R16B+.
-	Challenge = base64:encode(crypto:sha(
+	Challenge = base64:encode(crypto:hash(sha,
 		<< Key/binary, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11" >>)),
 	Extensions = case DeflateFrame of
 		false -> [];
@@ -198,13 +194,13 @@ websocket_handshake(State=#state{key=Key, deflate_frame=DeflateFrame, handler=Ha
 		Req),
 
 	%% Upgrade reply is sent, report that the websocket is open.
-	handle_event(Req, Handler, websocket_open, 
+	handle_event(Req, Handler, websocket_open,
 		[elli_ws_request_adapter:get(websocket_version, Req), DeflateFrame], HandlerState),
 
 	%% Flush the resp_sent message before moving on.
 	%% receive {elli_ws_request_adapter, resp_sent} -> ok after 0 -> ok end,
 	State2 = handler_loop_timeout(State),
-	handler_before_loop(State2#state{key=undefined, messages=elli_ws_request_adapter:messages(Req)}, 
+	handler_before_loop(State2#state{key=undefined, messages=elli_ws_request_adapter:messages(Req)},
 		Req2, HandlerState, <<>>).
 
 % -spec handler_before_loop(#state{}, Req, any(), binary())
@@ -538,7 +534,7 @@ is_utf8(_) ->
 % 	-> {ok, Req, cowboy_middleware:env()}
 % 	| {suspend, module(), atom(), [any()]}
 % 	when Req::elli_ws_request_adapter:req().
-websocket_payload_loop(State=#state{socket={_,Port}=Socket, 
+websocket_payload_loop(State=#state{socket={_,Port}=Socket,
 		messages={OK, Closed, Error}, timeout_ref=TRef},
 		Req, HandlerState, Opcode, Len, MaskKey, Unmasked, UnmaskedLen, Rsv) ->
 	ok = elli_tcp:setopts(Socket, [{active, once}]),
@@ -663,7 +659,7 @@ handler_call(State=#state{handler=Handler}, Req, HandlerState,
 			end;
 		{shutdown, Req2, HandlerState2} ->
 			websocket_close(State, Req2, HandlerState2, {normal, shutdown})
-	catch 
+	catch
 		throw:Exc ->
 			handle_event(Req, Handler, websocket_throw, [Exc, erlang:get_stacktrace()], HandlerState);
 		error:Error ->
@@ -784,10 +780,9 @@ payload_length_to_binary(N) ->
 
 
 %%
-%% Helper 
+%% Helper
 %%
 
 % @doc Report the error to the websocket handler.
 handle_event(Req, Handler, Name, EventArgs, Opts) ->
 	elli_ws_request_adapter:websocket_handler_handle_event(Req, Handler, Name, EventArgs, Opts).
-
